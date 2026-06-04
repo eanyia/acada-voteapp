@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vote Statistics - NaijaVote Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/">🇳🇬 NaijaVote Admin</a>
+            <div class="collapse navbar-collapse justify-content-end">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/admin/parties">Manage Parties</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/admin/statistics">Statistics</a>
+                    </li>
+                    <li class="nav-item">
+                        <form th:action="@{/logout}" method="POST" class="d-inline">
+                            <button type="submit" class="nav-link btn btn-link">Logout</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container my-5">
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <h1 class="mb-2">Election Statistics</h1>
+                <p class="text-muted">Real-time voting statistics and results</p>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card bg-primary text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Total Votes Cast</h5>
+                        <h2 th:text="${totalVotes}"></h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-success text-white">
+                    <div class="card-body">
+                        <h5 class="card-title">Political Parties</h5>
+                        <h2 th:text="${parties.size()}"></h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vote Distribution Chart -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Vote Distribution by Party</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="voteChart" height="80"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Party Results -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Detailed Results by Party</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Party Name</th>
+                                        <th>Abbreviation</th>
+                                        <th>Votes</th>
+                                        <th>Percentage</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="party : ${parties}">
+                                        <td th:text="${party.name}"></td>
+                                        <td><span class="badge bg-primary" th:text="${party.abbreviation}"></span></td>
+                                        <td>
+                                            <span th:text="${party.votes != null ? party.votes.size() : 0}"></span>
+                                        </td>
+                                        <td>
+                                            <span th:if="${totalVotes > 0}" th:text="${#numbers.formatDecimal((party.votes != null ? party.votes.size() : 0) * 100 / totalVotes, 1, 2) + '%'}"></span>
+                                            <span th:unless="${totalVotes > 0}">0%</span>
+                                        </td>
+                                        <td>
+                                            <a th:href="@{/admin/voters/{id}(id=${party.id})}" class="btn btn-sm btn-info">View Voters</a>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Prepare data for chart
+        const partyNames = [
+            'All Progressives Congress',
+            'Peoples Democratic Party',
+            'Labour Party',
+            'New Nigeria Peoples Party',
+            'Accord Party'
+        ];
+        const voteCounts = [0, 0, 0, 0, 0];
+
+        const colors = [
+            'rgba(255, 99, 132, 0.6)',
+            'rgba(54, 162, 235, 0.6)',
+            'rgba(255, 206, 86, 0.6)',
+            'rgba(75, 192, 192, 0.6)',
+            'rgba(153, 102, 255, 0.6)'
+        ];
+
+        const ctx = document.getElementById('voteChart').getContext('2d');
+        const voteChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: partyNames,
+                datasets: [{
+                    label: 'Number of Votes',
+                    data: voteCounts,
+                    backgroundColor: colors,
+                    borderColor: colors.map(c => c.replace('0.6', '1')),
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

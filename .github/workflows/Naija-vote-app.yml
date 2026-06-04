@@ -1,0 +1,76 @@
+name: Naija Vote APP Deploy
+
+on:
+  workflow_dispatch
+#   push:
+#     branches: [ "main" ]
+#     paths:
+#       - '**.yml'
+#       - '**.html'
+#       - '**.js'
+#       - '**.cfg'
+#       - 'Dockerfile'
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+        - name: checkout repo
+          uses: actions/checkout@v6
+        
+        - name: Login to Docker Hub
+          uses: docker/login-action@v4
+          with:
+            username: ${{ vars.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+        - name: Set up QEMU
+          uses: docker/setup-qemu-action@v4
+
+        - name: Set up Docker Buildx
+          uses: docker/setup-buildx-action@v4
+
+        - name: Build and push
+          uses: docker/build-push-action@v7
+          with:
+           context: .
+           push: true
+           tags: kniru/naijavote-main:latest
+  
+  Deploy-2-ec2:
+    runs-on: ubuntu-latest
+    needs: build-image
+    steps:
+        - name: checkout repo
+          uses: actions/checkout@v6
+        
+        - name: Build env
+          run: |
+            echo "POSTGRES_PASSWORD=${{secrets.POSTGRES_PASSWORD}}" >> .env
+            echo "POSTGRES_USER=${{secrets.POSTGRES_USER}}" >> .env
+            echo "SPRING_DATASOURCE_USERNAME=${{secrets.POSTGRES_USER}}" >> .env
+            echo "SPRING_DATASOURCE_PASSWORD=${{secrets.POSTGRES_PASSWORD}}" >> .env
+
+        - name: Copy artifact to ec2 instance
+          uses: appleboy/scp-action@v1
+          with:
+            host: ${{ vars.EC2HOST }}
+            username: ${{ secrets.EC2USERNAME }}
+            key: ${{ secrets.EC2KEY }}
+            source: "*"
+            target: ~/acada-vote-app
+            rm: true
+
+        - name: Deploy Docker file
+          uses: appleboy/ssh-action@v1
+          env: 
+            DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+            DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          with:
+            envs: DOCKERHUB_USERNAME,DOCKERHUB_TOKEN
+            host: ${{ vars.EC2HOST }}
+            username: ${{ secrets.EC2USERNAME }}
+            key: ${{ secrets.EC2KEY }}
+            script: |
+                echo "$DOCKERHUB_TOKEN" | docker login -u $DOCKERHUB_USERNAME --password-stdin
+                docker compose -f ~/acada-vote-app/docker-compose.yml  up -d

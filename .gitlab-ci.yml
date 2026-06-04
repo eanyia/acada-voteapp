@@ -1,0 +1,36 @@
+stages:
+  - build
+  - deploy
+
+build-game-image:
+   stage: build
+   image: docker:latest
+   services:
+     - docker:dind
+   before_script: 
+    - echo "$DOCKERHUB_TOKEN" | docker login -u $DOCKERHUB_USERNAME --password-stdin
+   script: | 
+      docker build -t $DOCKERHUB_USERNAME/naijavote:v1 . --push
+   rules:
+    - when: manual
+
+
+deploy-to-ec2:
+  stage: deploy
+  image: alpine:latest
+  needs: []
+  before_script: 
+    - echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD" >> .env
+    - echo "POSTGRES_USER=$POSTGRES_USER" >> .env
+    - echo "SPRING_DATASOURCE_USERNAME=$POSTGRES_USER" >> .env
+    - echo "SPRING_DATASOURCE_PASSWORD=$POSTGRES_PASSWORD" >> .env
+    - apk add openssh-client --no-cache
+    - echo $EC2_PRIVATE_KEY_b4 | base64 -d > /tmp/ec2-private_key
+    - chmod 600 /tmp/ec2-private_key
+    - ssh -i /tmp/ec2-private_key -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "mkdir ~/naijavote-app/ || true"
+    - scp -i /tmp/ec2-private_key -o StrictHostKeyChecking=no -r * ubuntu@$EC2_HOST:~/naijavote-app/ || true
+    - scp -i /tmp/ec2-private_key -o StrictHostKeyChecking=no .env ubuntu@$EC2_HOST:~/naijavote-app/ || true
+  script: |
+      ssh -i /tmp/ec2-private_key -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "cd ~/naijavote-app/ && docker compose up -d"
+  rules:
+    - when: manual
