@@ -16,8 +16,8 @@ pipeline{
         }
         stage("Maven Packaging"){
             steps{
-                // sh 'docker run --rm -v ./:/tmp/acada-voteapp -w /tmp/acada/webapp maven:latest mvn clean package && echo "Build Successful"'
-                sh 'mvn clean package'
+                sh 'docker run --rm -v ./:/tmp/acada-voteapp -w /tmp/acada-voteapp maven:latest mvn clean package && echo "Build Successful"'
+                // sh 'mvn clean package'
             }
         }
         stage("Image Build and Push"){
